@@ -85,12 +85,22 @@ static void pwm_apply(void) {
     if (best_wrap == 0) best_wrap = 1;
     if (best_wrap > 65535) best_wrap = 65535;
 
-    uint32_t level = (best_wrap * current_duty) / 100;
-    if (level > best_wrap) level = best_wrap;
+    uint16_t top = (uint16_t)(best_wrap - 1);
+
+    // level musí být <= top, jinak přetečení čítače způsobí poloviční frekvenci
+    uint16_t level;
+    if (current_duty >= 100) {
+        level = top;  // 100% = neustále HIGH
+    } else if (current_duty == 0) {
+        level = 0;
+    } else {
+        level = (uint16_t)((best_wrap * (uint32_t)current_duty) / 100);
+        if (level > top) level = top;
+    }
 
     pwm_set_clkdiv(pwm_slice, best_div);
-    pwm_set_wrap(pwm_slice, (uint16_t)(best_wrap - 1));
-    pwm_set_chan_level(pwm_slice, pwm_chan, (uint16_t)level);
+    pwm_set_wrap(pwm_slice, top);
+    pwm_set_chan_level(pwm_slice, pwm_chan, level);
     pwm_set_enabled(pwm_slice, true);
     pwm_running = true;
 }
